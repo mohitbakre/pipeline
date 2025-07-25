@@ -1,20 +1,14 @@
     # .github/workflows/deploy-to-cloud-run.yml
 
-    name: CI/CD to Google Cloud Run (Flask App)
+    name: CI/CD to Render (Flask App)
 
     on:
       push:
         branches:
           - main # Trigger on pushes to the main branch
 
-    env:
-      PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-      REGION: ${{ secrets.GCP_REGION }}
-      SERVICE_NAME: hello-world-flask
-      ARTIFACT_REGISTRY_REPO: hello-world-repo
-
     jobs:
-      build-and-deploy:
+      build-test-deploy:
         runs-on: ubuntu-latest
 
         steps:
@@ -27,16 +21,16 @@
               python-version: '3.11'
 
           - name: Install dependencies
-            # Run pip install from the d_pipeline directory
             run: |
               python -m pip install --upgrade pip
               pip install -r requirements.txt
-            working-directory: ./d_pipeline # <<< ADD THIS LINE
+              pip install playwright # Install Playwright for E2E tests
+              playwright install     # Install browser binaries
+            working-directory: ./d_pipeline
 
-          - name: Run Unit Tests # Using pytest
-            # Run pytest from the d_pipeline directory
+          - name: Run Unit Tests (Pytest)
             run: |
-              # The test_app.py created here will be in the correct context
+              # Create a simple test file for demonstration
               echo "
               import pytest
               from app import app
@@ -57,40 +51,28 @@
                   assert response.status_code == 200
                   assert b'healthy' in response.data
               " > test_app.py
-              pip install pytest
               pytest
-            working-directory: ./d_pipeline # <<< ADD THIS LINE
+            working-directory: ./d_pipeline
 
-          - name: Authenticate to Google Cloud
-            id: 'auth'
-            uses: 'google-github-actions/auth@v2'
-            with:
-              credentials_json: '${{ secrets.GCP_SA_KEY }}'
-
-          - name: Set up Cloud SDK
-            uses: 'google-github-actions/setup-gcloud@v2'
-
-          - name: Configure Docker to use Artifact Registry
-            run: gcloud auth configure-docker ${REGION}-docker.pkg.dev
-
-          - name: Build and Push Docker image to Artifact Registry
-            # Build Docker image from the d_pipeline directory
+          - name: Run E2E Tests (Playwright) - Requires deployed app URL
+            # This step will initially fail until you get the Render URL.
+            # We'll need to update this with the actual deployed URL later.
+            # For now, we'll use a placeholder or skip it if it's too complex.
+            # Better to run E2E after deployment.
+            # Let's move this to a separate job or make it dependent on a successful deploy.
+            # For this initial setup, we'll keep it simple and focus on the deployment.
+            # We can add E2E as a post-deployment check later.
             run: |
-              gcloud artifacts repositories describe ${ARTIFACT_REGISTRY_REPO} --location=${REGION} --project=${PROJECT_ID} || \
-              gcloud artifacts repositories create ${ARTIFACT_REGISTRY_REPO} --repository-format=docker --location=${REGION} --project=${PROJECT_ID} --description="Docker repository for Flask app"
+              # Placeholder for Playwright E2E test.
+              # This would typically run *after* deployment to the actual URL.
+              # For now, we'll just ensure Playwright installs correctly.
+              echo "Playwright installed. E2E tests will be added after deployment."
+            working-directory: ./d_pipeline
 
-              IMAGE_NAME=${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REGISTRY_REPO}/${SERVICE_NAME}:${GITHUB_SHA}
-
-              # The build context '.' will now refer to ./d_pipeline
-              docker build -t ${IMAGE_NAME} .
-              docker push ${IMAGE_NAME}
-            working-directory: ./d_pipeline # <<< ADD THIS LINE
-
-          - name: Deploy to Cloud Run
-            id: deploy
-            uses: google-github-actions/deploy-cloudrun@v2
-            with:
-              service: ${{ env.SERVICE_NAME }}
-              region: ${{ env.REGION }}
-              image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
-              flags: --allow-unauthenticated
+          - name: Trigger Render Deployment
+            # This step sends a POST request to Render's deploy hook
+            run: |
+              curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+            env:
+              # Store your Render Deploy Hook URL as a GitHub Secret
+              RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
