@@ -58,7 +58,7 @@ jobs:
                   assert response.status_code == 200
                   assert b'healthy' in response.data
               " > test_app.py
-              pytest
+              pytest . # <<< CHANGED: Explicitly tell pytest to look in the current directory
             working-directory: ./d_pipeline
 
           - name: Trigger Render Deployment
