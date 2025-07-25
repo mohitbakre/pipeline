@@ -1,0 +1,34 @@
+    # prometheus.yml
+    global:
+      scrape_interval: 15s # How frequently to scrape targets
+
+    scrape_configs:
+      - job_name: 'flask_app_render'
+        # Replace <YOUR_RENDER_APP_URL> with the actual URL of your deployed Flask app on Render.com
+        # e.g., 'https://hello-world-flask.onrender.com'
+        static_configs:
+          - targets: ['https://devops-pipeline.onrender.com'] # IMPORTANT: Replace with your actual Render URL
+            labels:
+              instance: 'render-deployed-app'
+        # Re-labeling to add the /metrics path if not directly in the URL
+        relabel_configs:
+          - source_labels: [__address__]
+            regex: '(.*)'
+            target_label: __metrics_path__
+            replacement: /metrics
+          - source_labels: [__address__]
+            regex: '(.*)'
+            target_label: __address__
+            replacement: '$1:443' # Use port 443 for HTTPS
+          - source_labels: [__scheme__]
+            regex: '(.*)'
+            target_label: __scheme__
+            replacement: 'https' # Ensure HTTPS is used for scraping
+
+      - job_name: 'flask_app_local'
+        # This job will scrape your locally running Flask app (if you start it via docker-compose)
+        # The 'app' service in docker-compose.yml runs on port 8080
+        static_configs:
+          - targets: ['app:8080'] # 'app' is the service name in docker-compose.yml
+            labels:
+              instance: 'local-docker-app'
