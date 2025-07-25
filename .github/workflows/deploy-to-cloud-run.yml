@@ -1,83 +1,79 @@
-    # .github/workflows/deploy-to-cloud-run.yml
+# .github/workflows/deploy-to-cloud-run.yml
 
-    name: CI/CD to Render (Flask App)
+name: CI/CD to Render (Flask App)
 
-    on:
-      push:
-        branches:
-          - main # Trigger on pushes to the main branch
+on:
+  push:
+    branches:
+      - main # Trigger on pushes to the main branch
 
-    env:
-      RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
-      APP_URL: ${{ secrets.RENDER_APP_URL }} # This is where we expect APP_URL to be set
+# Environment variables available to all jobs in this workflow
+env:
+  RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+  APP_URL: ${{ secrets.RENDER_APP_URL }}
 
-    jobs:
-      build-test-deploy:
-        runs-on: ubuntu-latest
+jobs:
+  build-test-deploy:
+    runs-on: ubuntu-latest
 
-        steps:
-          - name: Checkout code
-            uses: actions/checkout@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-          - name: Set up Python
-            uses: actions/setup-python@v5
-            with:
-              python-version: '3.11'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-          - name: Install dependencies
-            run: |
-              python -m pip install --upgrade pip
-              pip install -r requirements.txt
-              pip install playwright
-              playwright install
-            working-directory: ./d_pipeline
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install playwright
+          playwright install
+        working-directory: ./d_pipeline
 
-          - name: Run Unit Tests (Pytest)
-            run: |
-              # Create a simple test file for demonstration (if not already present)
-              echo "
-              import pytest
-              from app import app
+      - name: Run Unit Tests (Pytest)
+        run: |
+          # Create a simple test file for demonstration (if not already present)
+          echo "
+          import pytest
+          from app import app
 
-              @pytest.fixture
-              def client():
-                  app.config['TESTING'] = True
-                  with app.test_client() as client:
-                      yield client
+          @pytest.fixture
+          def client():
+              app.config['TESTING'] = True
+              with app.test_client() as client:
+                  yield client
 
-              def test_hello_world(client):
-                  response = client.get('/')
-                  assert response.status_code == 200
-                  assert b'Hello, World!' in response.data
+          def test_hello_world(client):
+              response = client.get('/')
+              assert response.status_code == 200
+              assert b'Hello, World!' in response.data
 
-              def test_health_check(client):
-                  response = client.get('/healthz')
-                  assert response.status_code == 200
-                  assert b'healthy' in response.data
-              " > test_app.py
-              pytest
-            working-directory: ./d_pipeline
+          def test_health_check(client):
+              response = client.get('/healthz')
+              assert response.status_code == 200
+              assert b'healthy' in response.data
+          " > test_app.py
+          pytest
+        working-directory: ./d_pipeline
 
-          - name: Trigger Render Deployment
-            run: |
-              curl -X POST ${{ env.RENDER_DEPLOY_HOOK_URL }}
+      - name: Trigger Render Deployment
+        run: |
+          curl -X POST ${{ env.RENDER_DEPLOY_HOOK_URL }}
 
-          - name: Wait for Render deployment to be live (Optional but recommended for E2E)
-            run: |
-              echo "Waiting for Render deployment to become live..."
-              sleep 30
+      - name: Wait for Render deployment to be live (Optional but recommended for E2E)
+        run: |
+          echo "Waiting for Render deployment to become live..."
+          sleep 30
 
-          # --- NEW DEBUG STEP ---
-          - name: Debug: Print Environment Variables
-            run: |
-              echo "--- Environment Variables ---"
-              printenv | grep "APP_URL" || echo "APP_URL not found" # Check for APP_URL specifically
-              printenv | grep "RENDER_DEPLOY_HOOK_URL" || echo "RENDER_DEPLOY_HOOK_URL not found"
-              echo "---------------------------"
-            working-directory: ./d_pipeline # Ensure this runs in the correct context
+      - name:Debug: Print APP_URL Environment Variable
+        run: |
+          echo "APP_URL: $APP_URL" # Directly print the variable
+        working-directory: ./d_pipeline # Ensure this runs in the correct context
 
-          - name: Run E2E Tests (Playwright)
-            run: |
-              pytest playwright_test.py
-            working-directory: ./d_pipeline
-    
+      - name: Run E2E Tests (Playwright)
+        run: |
+          pytest playwright_test.py
+        working-directory: ./d_pipeline
