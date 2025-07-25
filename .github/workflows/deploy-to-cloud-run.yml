@@ -8,14 +8,14 @@
           - main # Trigger on pushes to the main branch
 
     env:
-      PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }} # Google Cloud Project ID from GitHub Secrets
-      REGION: ${{ secrets.GCP_REGION }}         # Google Cloud Region from GitHub Secrets
-      SERVICE_NAME: hello-world-flask           # Name of your Cloud Run service
-      ARTIFACT_REGISTRY_REPO: hello-world-repo  # Name for your Artifact Registry repository
+      PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+      REGION: ${{ secrets.GCP_REGION }}
+      SERVICE_NAME: hello-world-flask
+      ARTIFACT_REGISTRY_REPO: hello-world-repo
 
     jobs:
       build-and-deploy:
-        runs-on: ubuntu-latest # Use a Linux runner for Docker builds
+        runs-on: ubuntu-latest
 
         steps:
           - name: Checkout code
@@ -24,17 +24,19 @@
           - name: Set up Python
             uses: actions/setup-python@v5
             with:
-              python-version: '3.11' # Match your local Python version
+              python-version: '3.11'
 
           - name: Install dependencies
+            # Run pip install from the d_pipeline directory
             run: |
               python -m pip install --upgrade pip
               pip install -r requirements.txt
+            working-directory: ./d_pipeline # <<< ADD THIS LINE
 
           - name: Run Unit Tests # Using pytest
+            # Run pytest from the d_pipeline directory
             run: |
-              # Create a simple test file for demonstration
-              # In a real project, you'd have a dedicated tests/ directory
+              # The test_app.py created here will be in the correct context
               echo "
               import pytest
               from app import app
@@ -56,7 +58,8 @@
                   assert b'healthy' in response.data
               " > test_app.py
               pip install pytest
-              pytest # Run all tests in the current directory
+              pytest
+            working-directory: ./d_pipeline # <<< ADD THIS LINE
 
           - name: Authenticate to Google Cloud
             id: 'auth'
@@ -71,19 +74,17 @@
             run: gcloud auth configure-docker ${REGION}-docker.pkg.dev
 
           - name: Build and Push Docker image to Artifact Registry
+            # Build Docker image from the d_pipeline directory
             run: |
-              # Create Artifact Registry repository if it doesn't exist
               gcloud artifacts repositories describe ${ARTIFACT_REGISTRY_REPO} --location=${REGION} --project=${PROJECT_ID} || \
               gcloud artifacts repositories create ${ARTIFACT_REGISTRY_REPO} --repository-format=docker --location=${REGION} --project=${PROJECT_ID} --description="Docker repository for Flask app"
 
-              # Define image name
               IMAGE_NAME=${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REGISTRY_REPO}/${SERVICE_NAME}:${GITHUB_SHA}
 
-              # Build the Docker image
+              # The build context '.' will now refer to ./d_pipeline
               docker build -t ${IMAGE_NAME} .
-
-              # Push the Docker image to Artifact Registry
               docker push ${IMAGE_NAME}
+            working-directory: ./d_pipeline # <<< ADD THIS LINE
 
           - name: Deploy to Cloud Run
             id: deploy
@@ -92,6 +93,4 @@
               service: ${{ env.SERVICE_NAME }}
               region: ${{ env.REGION }}
               image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
-              # Allow unauthenticated invocations for simplicity in learning
-              # In production, you'd likely remove this and add IAM permissions for callers
               flags: --allow-unauthenticated
