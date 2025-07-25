@@ -7,9 +7,9 @@
         branches:
           - main # Trigger on pushes to the main branch
 
-    env: # <<< ADD APP_URL HERE
+    env:
       RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
-      APP_URL: ${{ secrets.RENDER_APP_URL }} # <<< THIS IS THE KEY CHANGE: Set APP_URL at job level
+      APP_URL: ${{ secrets.RENDER_APP_URL }} # This is where we expect APP_URL to be set
 
     jobs:
       build-test-deploy:
@@ -60,18 +60,24 @@
 
           - name: Trigger Render Deployment
             run: |
-              curl -X POST ${{ env.RENDER_DEPLOY_HOOK_URL }} # Use env.RENDER_DEPLOY_HOOK_URL now
-            # env: # <<< REMOVE THIS BLOCK from here
-            #   RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }} # <<< REMOVE THIS LINE
+              curl -X POST ${{ env.RENDER_DEPLOY_HOOK_URL }}
 
           - name: Wait for Render deployment to be live (Optional but recommended for E2E)
             run: |
               echo "Waiting for Render deployment to become live..."
               sleep 30
 
+          # --- NEW DEBUG STEP ---
+          - name: Debug: Print Environment Variables
+            run: |
+              echo "--- Environment Variables ---"
+              printenv | grep "APP_URL" || echo "APP_URL not found" # Check for APP_URL specifically
+              printenv | grep "RENDER_DEPLOY_HOOK_URL" || echo "RENDER_DEPLOY_HOOK_URL not found"
+              echo "---------------------------"
+            working-directory: ./d_pipeline # Ensure this runs in the correct context
+
           - name: Run E2E Tests (Playwright)
             run: |
               pytest playwright_test.py
             working-directory: ./d_pipeline
-            # env: # <<< REMOVE THIS BLOCK from here
-            #   APP_URL: ${{ secrets.RENDER_APP_URL }} # <<< REMOVE THIS LINE
+    
