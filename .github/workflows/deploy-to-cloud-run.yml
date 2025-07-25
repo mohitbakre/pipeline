@@ -1,0 +1,97 @@
+    # .github/workflows/deploy-to-cloud-run.yml
+
+    name: CI/CD to Google Cloud Run (Flask App)
+
+    on:
+      push:
+        branches:
+          - main # Trigger on pushes to the main branch
+
+    env:
+      PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }} # Google Cloud Project ID from GitHub Secrets
+      REGION: ${{ secrets.GCP_REGION }}         # Google Cloud Region from GitHub Secrets
+      SERVICE_NAME: hello-world-flask           # Name of your Cloud Run service
+      ARTIFACT_REGISTRY_REPO: hello-world-repo  # Name for your Artifact Registry repository
+
+    jobs:
+      build-and-deploy:
+        runs-on: ubuntu-latest # Use a Linux runner for Docker builds
+
+        steps:
+          - name: Checkout code
+            uses: actions/checkout@v4
+
+          - name: Set up Python
+            uses: actions/setup-python@v5
+            with:
+              python-version: '3.11' # Match your local Python version
+
+          - name: Install dependencies
+            run: |
+              python -m pip install --upgrade pip
+              pip install -r requirements.txt
+
+          - name: Run Unit Tests # Using pytest
+            run: |
+              # Create a simple test file for demonstration
+              # In a real project, you'd have a dedicated tests/ directory
+              echo "
+              import pytest
+              from app import app
+
+              @pytest.fixture
+              def client():
+                  app.config['TESTING'] = True
+                  with app.test_client() as client:
+                      yield client
+
+              def test_hello_world(client):
+                  response = client.get('/')
+                  assert response.status_code == 200
+                  assert b'Hello, World!' in response.data
+
+              def test_health_check(client):
+                  response = client.get('/healthz')
+                  assert response.status_code == 200
+                  assert b'healthy' in response.data
+              " > test_app.py
+              pip install pytest
+              pytest # Run all tests in the current directory
+
+          - name: Authenticate to Google Cloud
+            id: 'auth'
+            uses: 'google-github-actions/auth@v2'
+            with:
+              credentials_json: '${{ secrets.GCP_SA_KEY }}'
+
+          - name: Set up Cloud SDK
+            uses: 'google-github-actions/setup-gcloud@v2'
+
+          - name: Configure Docker to use Artifact Registry
+            run: gcloud auth configure-docker ${REGION}-docker.pkg.dev
+
+          - name: Build and Push Docker image to Artifact Registry
+            run: |
+              # Create Artifact Registry repository if it doesn't exist
+              gcloud artifacts repositories describe ${ARTIFACT_REGISTRY_REPO} --location=${REGION} --project=${PROJECT_ID} || \
+              gcloud artifacts repositories create ${ARTIFACT_REGISTRY_REPO} --repository-format=docker --location=${REGION} --project=${PROJECT_ID} --description="Docker repository for Flask app"
+
+              # Define image name
+              IMAGE_NAME=${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REGISTRY_REPO}/${SERVICE_NAME}:${GITHUB_SHA}
+
+              # Build the Docker image
+              docker build -t ${IMAGE_NAME} .
+
+              # Push the Docker image to Artifact Registry
+              docker push ${IMAGE_NAME}
+
+          - name: Deploy to Cloud Run
+            id: deploy
+            uses: google-github-actions/deploy-cloudrun@v2
+            with:
+              service: ${{ env.SERVICE_NAME }}
+              region: ${{ env.REGION }}
+              image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY_REPO }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+              # Allow unauthenticated invocations for simplicity in learning
+              # In production, you'd likely remove this and add IAM permissions for callers
+              flags: --allow-unauthenticated
