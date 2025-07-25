@@ -68,7 +68,8 @@ jobs:
           echo "Waiting for Render deployment to become live..."
           sleep 30
 
-      - name:Debug: Print APP_URL Environment Variable
+      - name:
+        Debug: Print APP_URL Environment Variable # Corrected: Added space after 'name:'
         run: |
           echo "APP_URL: $APP_URL" # Directly print the variable
         working-directory: ./d_pipeline # Ensure this runs in the correct context
