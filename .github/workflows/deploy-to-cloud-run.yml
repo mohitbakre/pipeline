@@ -8,8 +8,10 @@ on:
       - main # Trigger on pushes to the main branch
 
 # Environment variables available to all jobs in this workflow
+# APP_URL is now also explicitly passed to the E2E step for robustness
 env:
   RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+  # APP_URL is defined here, but also explicitly passed to the E2E step
   APP_URL: ${{ secrets.RENDER_APP_URL }}
 
 jobs:
@@ -68,13 +70,11 @@ jobs:
           echo "Waiting for Render deployment to become live..."
           sleep 30
 
-      - name:
-        Debug: Print APP_URL Environment Variable # Corrected: Added space after 'name:'
-        run: |
-          echo "APP_URL: $APP_URL" # Directly print the variable
-        working-directory: ./d_pipeline # Ensure this runs in the correct context
+      # Removed the explicit debug step as we are now directly addressing the variable passing.
 
       - name: Run E2E Tests (Playwright)
         run: |
           pytest playwright_test.py
         working-directory: ./d_pipeline
+        env: # Explicitly pass APP_URL to this step's environment
+          APP_URL: ${{ env.APP_URL }} # Use the APP_URL defined at the job level
