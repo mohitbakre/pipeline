@@ -38,7 +38,7 @@ jobs:
       - name: Run Unit Tests (Pytest)
         run: |
             pytest
-          working-directory: ./d_pipeline
+        working-directory: ./d_pipeline
 
       - name: Trigger Render Deployment
         run: |
