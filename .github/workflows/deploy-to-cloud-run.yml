@@ -35,6 +35,11 @@ jobs:
           playwright install
         working-directory: ./d_pipeline
 
+      - name: Run Unit Tests (Pytest)
+        run: |
+            pytest
+          working-directory: ./d_pipeline
+
       - name: Trigger Render Deployment
         run: |
           curl -X POST ${{ env.RENDER_DEPLOY_HOOK_URL }}
