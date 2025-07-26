@@ -11,7 +11,7 @@ on:
 env:
   RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
   APP_URL: ${{ secrets.RENDER_APP_URL }}
-  JIRA_ISSUE_KEY: 'DP-1' # IMPORTANT: Replace with your actual Jira Issue Key (e.g., 'DP-1', 'FLASK-123')
+  JIRA_ISSUE_KEY: 'SCRUM-8' # IMPORTANT: Replace with your actual Jira Issue Key (e.g., 'DP-1', 'FLASK-123')
                                # You can find this on your Jira story card/page.
 
 jobs:
@@ -68,7 +68,4 @@ jobs:
           transition: 'Done' # Or the exact name/ID of your "Done" or "Deployed" status
                             # You might need to find the exact transition ID or name in your Jira workflow.
                             # Common names: 'Done', 'Deployed', 'Closed'.
-          comment: |
-            Deployment to Render completed successfully!
-            Application URL: ${{ env.APP_URL }}
-            GitHub Workflow Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
