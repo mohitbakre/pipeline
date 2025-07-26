@@ -35,41 +35,6 @@ jobs:
           playwright install
         working-directory: ./d_pipeline
 
-      #- name: Run Unit Tests (Pytest)
-      #  run: |
-      #    # Remove any existing test_app.py from the root to prevent conflicts
-          # This command runs from the repo root before changing working-directory
-      #    rm -f test_app.py || true # '|| true' prevents the step from failing if file doesn't exist
-
-          # Create a simple test file for demonstration (this will be in d_pipeline due to working-directory)
-
-      #    cat > test_app.py << 'EOF'
-      #    import pytest
-      #    from app import app
-
-      #    @pytest.fixture
-      #    def client():
-      #        app.config['TESTING'] = True
-      #        with app.test_client() as client:
-      #            yield client
-
-      #    def test_hello_world(client):
-      #        response = client.get('/')
-      #        assert response.status_code == 200
-      #        assert b'Hello, World!' in response.data
-
-      #    def test_health_check(client):
-      #        response = client.get('/healthz')
-      #        assert response.status_code == 200
-      #        assert b'healthy' in response.data
-      #    EOF
-      #            echo "---- test_app.py content ----"
-      #            cat -n test_app.py
-      #            echo "----------------------------"
-
-      #    pytest . # Explicitly tell pytest to look in the current directory (d_pipeline)
-      #    working-directory: ./d_pipeline # This ensures the echo and pytest commands run in d_pipeline
-
       - name: Trigger Render Deployment
         run: |
           curl -X POST ${{ env.RENDER_DEPLOY_HOOK_URL }}
